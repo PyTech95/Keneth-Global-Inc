@@ -19,7 +19,7 @@ export function Logo({ variant = "horizontal", className = "" }) {
     if (variant === "compact") {
         return (
             <div className={`flex items-center gap-2 ${className}`}>
-                <Monogram className="w-8 h-8" />
+                <Monogram className="w-[43px] h-[43px]" />
             </div>
         );
     }
@@ -27,7 +27,7 @@ export function Logo({ variant = "horizontal", className = "" }) {
     if (variant === "stacked") {
         return (
             <div className={`inline-flex flex-col items-center ${className}`}>
-                <Monogram className="w-16 h-16 mb-2" />
+                <Monogram className="w-[86px] h-[86px] mb-2" />
                 <span className="font-serif text-2xl tracking-tight text-bone-100 leading-none">Keneth</span>
                 <span className="font-serif italic text-lg text-brass-400 leading-tight mt-0.5">Global Inc</span>
                 <span className="text-[9px] tracking-[0.32em] uppercase text-bone-300 mt-2">Est. 2019</span>
@@ -37,7 +37,7 @@ export function Logo({ variant = "horizontal", className = "" }) {
 
     return (
         <div className={`inline-flex items-center gap-3 sm:gap-3.5 ${className}`}>
-            <Monogram className="w-10 h-10 shrink-0" />
+            <Monogram className="w-[54px] h-[54px] shrink-0" />
             <div className="flex flex-col leading-none">
                 <div className="flex items-baseline gap-1.5 sm:gap-2">
                     <span className="font-serif text-[22px] tracking-tight text-bone-100">Keneth</span>
