@@ -1,0 +1,114 @@
+{
+  "theme": "dark",
+  "typography": {
+    "fonts": {
+      "heading": "Cormorant Garamond",
+      "body": "Outfit",
+      "labels": "Outfit"
+    },
+    "hierarchy": {
+      "h1": "text-5xl sm:text-6xl font-serif font-medium tracking-tight leading-none",
+      "h2": "text-3xl sm:text-4xl font-serif font-medium tracking-tight",
+      "h3": "text-xl sm:text-2xl font-serif font-medium",
+      "body": "text-base font-sans font-light text-[#EAE8E3]/80 leading-relaxed",
+      "overline": "text-xs font-sans font-medium tracking-[0.2em] uppercase text-[#C5A059]"
+    },
+    "rules": [
+      "NEVER use Inter, Roboto, or generic sans for headings.",
+      "Always use tight letter spacing on headings, wide spacing on overlines.",
+      "Ensure heading line-height is tight (leading-none)."
+    ]
+  },
+  "colors": {
+    "background": {
+      "primary": "#0A0A09",
+      "secondary": "#151413",
+      "surface": "#1A1918"
+    },
+    "text": {
+      "primary": "#EAE8E3",
+      "secondary": "#A3A099",
+      "accent": "#C5A059"
+    },
+    "border": {
+      "subtle": "rgba(234, 232, 227, 0.1)",
+      "accent": "#C5A059"
+    },
+    "rules": [
+      "NO pure black (#000000) or pure white (#FFFFFF). Use tinted charcoal (#0A0A09) and bone white (#EAE8E3).",
+      "NO purple gradients or generic SaaS palettes. Stick to Midnight & Brass (Luxury Archetype).",
+      "Use #C5A059 (muted gold) sparingly for primary CTAs and active states."
+    ]
+  },
+  "layouts": {
+    "hero": "Full-bleed cinematic hero section with bg-black/40 to bg-black/50 overlay. Text must be left-aligned or center-aligned with high dramatic contrast.",
+    "product_grid": "Asymmetrical editorial grid (grid-cols-1 md:grid-cols-12 gap-8). Mix tall portrait cards (col-span-4 row-span-2) with square supporting cards.",
+    "spacing": "Generous. Use p-12, p-16, py-24 for section padding to allow the luxury feel to breathe.",
+    "surfaces": "Crystal Glass for sticky headers: bg-[#0A0A09]/70 backdrop-blur-xl border-b border-white/10. Flat, 1px bordered containers (border-[#EAE8E3]/10) for product cards.",
+    "rules": [
+      "DO NOT use standard Bootstrap equal-column grids for marketing pages.",
+      "DO NOT use fully transparent backgrounds for navbars or drop-downs over content. Use glassmorphism or solid backgrounds."
+    ]
+  },
+  "components": {
+    "buttons": "Sharp (rounded-none) or very subtle (rounded-sm). Primary CTA: border border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-[#0A0A09] transition-colors duration-300.",
+    "cards": "Cardless or flat geometric shapes. Image takes 80% of height. On hover: image scales up smoothly (scale-105) inside overflow-hidden container.",
+    "inputs": "Shadcn based, but strictly styled: bg-transparent border-b border-white/20 rounded-none focus:border-[#C5A059].",
+    "language_switcher": "Text-based dropdown (EN, DE, FR, ES, IT) in the header. No colorful flag icons. Use wide tracking.",
+    "data_testid": "ALL interactive elements MUST have data-testid attributes (e.g., data-testid='add-to-cart-btn')."
+  },
+  "visual_enhancers": {
+    "motion": "Lenis for smooth scrolling (MANDATORY). Framer Motion for subtle fade-in-up (y: 20, opacity: 0) on scroll. Micro-interactions on buttons and product cards.",
+    "textures": "Optional subtle noise/grain overlay (mix-blend-overlay, opacity 5%) over the entire body to kill digital flatness and enhance the tactile 'fabric/spice' feel.",
+    "hover_states": "Product cards must reveal 'Add to Cart' or 'Quick View' subtly on hover. Text colors must shift with high contrast."
+  },
+  "image_urls": {
+    "spices": [
+      {
+        "url": "https://images.unsplash.com/photo-1605709303019-109aaf636e32?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBpbmRpYW4lMjBzcGljZXMlMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODQ5MTYzNzh8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Dramatic dark spice setting",
+        "category": "category_hero"
+      },
+      {
+        "url": "https://images.pexels.com/photos/2632292/pexels-photo-2632292.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Spices on spoons flat lay",
+        "category": "product_thumbnail"
+      }
+    ],
+    "home_decor": [
+      {
+        "url": "https://images.unsplash.com/photo-1768979121229-392fce4957ab?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwzfHxwcmVtaXVtJTIwYmVkc2hlZXQlMjBob21lJTIwZGVjb3IlMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODQ5MTYzNzh8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Luxury dark bedsheet fabric waves",
+        "category": "product_thumbnail"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1530367086713-83fee2b59d84?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB0YWJsZSUyMHJ1bm5lciUyMGRpbmluZyUyMGRhcmslMjBzZXR0aW5nfGVufDB8fHx8MTc4NDkxNjM3N3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Dark luxury dining setting with table runner",
+        "category": "product_thumbnail"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1778809848208-140b81767c4e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzF8MHwxfHNlYXJjaHwxfHxpbmRpYW4lMjB3YWxsJTIwaGFuZ2luZyUyMGNhcnBldCUyMGx1eHVyeSUyMGludGVyaW9yfGVufDB8fHx8MTc4NDkxNjM3N3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Intricate persian carpet",
+        "category": "category_hero"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Build the UI in React using standard .js extensions (not .tsx).",
+    "Use pure HTML + Tailwind for the main marketing/e-commerce layouts (grid, flex) to achieve editorial asymmetry.",
+    "Use Shadcn UI primarily for complex interactives (Forms, Modals, Dropdowns) but heavily customize them to match the dark/gold luxury theme.",
+    "Ensure standard components like Dropdowns use a solid background (#151413) instead of transparent to prevent readability issues over content.",
+    "Apply data-testid to all actionable items.",
+    "Use lucide-react for elegant, minimal icons.",
+    "Create a Multi-Language Dropdown in the header, keeping it minimal text (EN / DE / FR / ES / IT).",
+    "Integrate a toggleable or separate Admin Panel section for managing products, categories, and orders using Shadcn tables/cards."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Avoid the 'AI slop' aesthetic. Create depth with z-index hierarchy and layered shadows.",
+    "Do not apply `transition: all` globally. Target transitions specifically (e.g. `transition-colors`, `transition-transform`).",
+    "Never center-align the main App container globally (`.App { text-align: center; }`).",
+    "Never use AI assistant emojis for icons.",
+    "Use sonner for elegant toast notifications on cart additions.",
+    "Prioritize optical alignment over geometric alignment."
+  ]
+}
