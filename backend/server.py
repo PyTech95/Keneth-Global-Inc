@@ -1,5 +1,5 @@
 """Keneth Global — FastAPI backend.
-E-commerce API: products, cart, orders, Stripe (Flow B), auth, admin, AI image gen.
+E-commerce API: products, orders, direct Stripe checkout, auth and admin.
 """
 from dotenv import load_dotenv
 from pathlib import Path
@@ -8,7 +8,6 @@ load_dotenv(ROOT_DIR / ".env")
 
 import os
 import logging
-import asyncio
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -30,9 +29,10 @@ from auth_utils import (
     _sanitize_user,
 )
 from seed_catalog import CATALOG
-from image_gen import generate_images_for_products, generate_product_image, reconcile_static_images, STATIC_DIR
-from extra_routes import extra_router, seed_journal, generate_journal_covers, generate_gallery_for_products
+from static_catalog import reconcile_static_images
+from extra_routes import extra_router, seed_journal
 from video_settings import video_router
+from payments import payment_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -162,161 +162,6 @@ async def get_product(slug: str):
     return doc_to_product(doc)
 
 
-# ================== CART / CHECKOUT (Stripe Flow B) ==================
-class CartItemIn(BaseModel):
-    slug: str
-    quantity: int = Field(ge=1, le=50)
-
-
-class CheckoutIn(BaseModel):
-    items: List[CartItemIn]
-    origin_url: str
-    email: Optional[str] = None
-    gift_wrap: bool = False
-    gift_message: Optional[str] = None
-
-
-@api.post("/checkout/session")
-async def create_checkout(payload: CheckoutIn, user=Depends(get_optional_user)):
-    if not payload.items:
-        raise HTTPException(status_code=400, detail="Cart is empty")
-
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
-
-    stripe_key = os.environ.get("STRIPE_API_KEY")
-    if not stripe_key:
-        raise HTTPException(status_code=500, detail="Stripe key not configured")
-
-    # Compute total server-side (never trust frontend amount)
-    total = 0.0
-    order_items = []
-    for item in payload.items:
-        product = await db.products.find_one({"slug": item.slug, "active": {"$ne": False}})
-        if not product:
-            raise HTTPException(status_code=400, detail=f"Product not found: {item.slug}")
-        price = float(product["price_eur"])
-        line_total = price * item.quantity
-        total += line_total
-        order_items.append({
-            "slug": item.slug,
-            "product_id": str(product["_id"]),
-            "name_en": product["name"]["en"],
-            "quantity": item.quantity,
-            "unit_price": price,
-            "line_total": line_total,
-        })
-
-    # Premium gift wrap (flat fee, server-controlled)
-    GIFT_WRAP_FEE_EUR = 5.0
-    gift_wrap = bool(payload.gift_wrap)
-    gift_message = (payload.gift_message or "").strip()[:500]
-    if gift_wrap:
-        total += GIFT_WRAP_FEE_EUR
-
-    total = round(total, 2)
-
-    origin = payload.origin_url.rstrip("/")
-    success_url = f"{origin}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{origin}/payment/cancel"
-
-    # Webhook target is pinned server-side (never trust the client-supplied origin
-    # for payment webhook routing); falls back to origin only if unset.
-    webhook_base = os.environ.get("PUBLIC_BASE_URL", origin).rstrip("/")
-    stripe_checkout = StripeCheckout(
-        api_key=stripe_key,
-        webhook_url=f"{webhook_base}/api/webhook/stripe",
-    )
-
-    metadata = {
-        "user_id": user["id"] if user else "guest",
-        "item_count": str(len(order_items)),
-        "gift_wrap": str(gift_wrap),
-    }
-    req = CheckoutSessionRequest(
-        amount=total,
-        currency="eur",
-        success_url=success_url,
-        cancel_url=cancel_url,
-        metadata=metadata,
-    )
-    session = await stripe_checkout.create_checkout_session(req)
-
-    order_doc = {
-        "session_id": session.session_id,
-        "user_id": user["id"] if user else None,
-        "email": (user["email"] if user else payload.email) or "",
-        "items": order_items,
-        "amount": total,
-        "currency": "eur",
-        "status": "initiated",
-        "payment_status": "pending",
-        "gift_wrap": gift_wrap,
-        "gift_message": gift_message,
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
-    }
-    await db.orders.insert_one(order_doc)
-
-    return {"checkout_url": session.url, "session_id": session.session_id}
-
-
-@api.get("/checkout/status/{session_id}")
-async def checkout_status(session_id: str):
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
-    stripe_key = os.environ.get("STRIPE_API_KEY")
-    order = await db.orders.find_one({"session_id": session_id})
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    # Poll Stripe if still pending
-    if order.get("payment_status") != "paid":
-        try:
-            sc = StripeCheckout(api_key=stripe_key, webhook_url="")
-            status = await sc.get_checkout_status(session_id)
-            if status.payment_status == "paid" or status.status == "complete":
-                await db.orders.update_one(
-                    {"session_id": session_id, "payment_status": {"$ne": "paid"}},
-                    {"$set": {
-                        "status": "completed",
-                        "payment_status": "paid",
-                        "updated_at": datetime.now(timezone.utc),
-                    }},
-                )
-                order = await db.orders.find_one({"session_id": session_id})
-        except Exception as e:
-            logger.warning(f"Stripe status poll failed: {e}")
-    return {
-        "session_id": order["session_id"],
-        "status": order["status"],
-        "payment_status": order["payment_status"],
-        "amount": order["amount"],
-        "currency": order["currency"],
-    }
-
-
-@app.post("/api/webhook/stripe")
-async def stripe_webhook(request: Request):
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
-    stripe_key = os.environ.get("STRIPE_API_KEY")
-    body = await request.body()
-    sig = request.headers.get("Stripe-Signature", "")
-    try:
-        sc = StripeCheckout(api_key=stripe_key, webhook_url="")
-        event = await sc.handle_webhook(body, sig)
-    except Exception as e:
-        logger.error(f"Webhook parse failed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid webhook")
-    if event and event.session_id:
-        await db.orders.update_one(
-            {"session_id": event.session_id, "payment_status": {"$ne": "paid"}},
-            {"$set": {
-                "status": "completed" if event.payment_status == "paid" else event.payment_status,
-                "payment_status": event.payment_status,
-                "updated_at": datetime.now(timezone.utc),
-            }},
-        )
-    return {"status": "ok"}
-
-
 # ================== ORDERS ==================
 @api.get("/orders/mine")
 async def my_orders(user=Depends(get_current_user)):
@@ -395,28 +240,6 @@ async def update_product(product_id: str, patch: ProductPatch, admin=Depends(req
     return doc_to_product(doc)
 
 
-@api.post("/admin/products/{product_id}/regenerate-image")
-async def regenerate_image(product_id: str, bg: BackgroundTasks, admin=Depends(require_admin)):
-    try:
-        oid = ObjectId(product_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid id")
-    doc = await db.products.find_one({"_id": oid})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Not found")
-    prompt = doc.get("image_prompt")
-    if not prompt:
-        raise HTTPException(status_code=400, detail="No image prompt")
-
-    async def do_gen():
-        path = await generate_product_image(prompt, doc.get("slug", ""))
-        if path:
-            await db.products.update_one({"_id": oid}, {"$set": {"ai_image": path}})
-
-    bg.add_task(do_gen)
-    return {"status": "queued"}
-
-
 class OrderStatusPatch(BaseModel):
     status: str  # 'shipped' | 'delivered' | 'cancelled'
 
@@ -485,20 +308,9 @@ async def on_startup():
     await seed_admin(db)
     await seed_catalog(db)
     await seed_journal(db)
-    # Reuse the curated PNGs bundled in static/products instead of
-    # regenerating via the LLM key (saves cost, keeps exact images).
+    # Restore bundled photo paths on a fresh database; no generation or network calls.
     await reconcile_static_images(db)
     logger.info("Seed + image reconcile complete.")
-    # Only generate images for anything still missing after reconcile.
-    async def _fill_missing():
-        missing = await db.products.count_documents({"$or": [{"ai_image": {"$exists": False}}, {"ai_image": ""}]})
-        journal_missing = await db.journal.count_documents({"$or": [{"cover_image": {"$exists": False}}, {"cover_image": ""}]})
-        if missing:
-            logger.info(f"{missing} products missing images -> generating")
-            await generate_images_for_products(db)
-        if journal_missing:
-            await generate_journal_covers(db)
-    asyncio.create_task(_fill_missing())
 
 
 @app.on_event("shutdown")
@@ -525,12 +337,13 @@ async def health():
 app.include_router(api)
 app.include_router(extra_router)
 app.include_router(video_router)
+app.include_router(payment_router)
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_credentials=False,
+    allow_origins=[origin.strip() for origin in os.environ["CORS_ORIGINS"].split(",") if origin.strip()],
     allow_methods=["*"],
     allow_headers=["*"],
 )

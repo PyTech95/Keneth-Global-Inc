@@ -35,6 +35,19 @@ def admin_headers(admin_token):
 
 
 @pytest.fixture(scope="session")
+def checkout_available(api):
+    """Detect if checkout is fully configured (valid Stripe key + webhook secret)."""
+    probe = api.post(
+        f"{BASE_URL}/api/checkout/session",
+        json={"items": [{"slug": "royal-garam-masala", "quantity": 1}], "email": "probe@test.com"},
+    )
+    if probe.status_code == 503 and any(reason in probe.json().get("detail", "") for reason in ("Stripe test API key", "webhook signing secret")):
+        return False
+    assert probe.status_code == 200, f"Unexpected checkout failure: {probe.status_code} {probe.text}"
+    return True
+
+
+@pytest.fixture(scope="session")
 def customer_token(api):
     email = f"TEST_cust_{int(time.time()*1000)}@example.com"
     r = api.post(f"{BASE_URL}/api/auth/register", json={
@@ -179,7 +192,9 @@ class TestAuth:
 
 # ---------------- Checkout ----------------
 class TestCheckout:
-    def test_create_checkout_session(self, api):
+    def test_create_checkout_session(self, api, checkout_available):
+        if not checkout_available:
+            pytest.skip("Stripe checkout not configured in this environment")
         payload = {
             "items": [{"slug": "royal-garam-masala", "quantity": 2}],
             "origin_url": BASE_URL,
@@ -194,7 +209,7 @@ class TestCheckout:
         assert s.status_code == 200
         sd = s.json()
         assert sd["status"] in ("initiated", "completed")
-        assert sd["amount"] == 17.80
+        assert sd["amount"] == 29.80  # 17.80 products + 12.00 delivery
 
     def test_checkout_empty(self, api):
         r = api.post(f"{BASE_URL}/api/checkout/session", json={"items": [], "origin_url": BASE_URL})
@@ -211,8 +226,10 @@ class TestCheckout:
         r = api.get(f"{BASE_URL}/api/checkout/status/nonexistent-session")
         assert r.status_code == 404
 
-    def test_server_computes_amount_ignores_client_price(self, api):
+    def test_server_computes_amount_ignores_client_price(self, api, checkout_available):
         """Client-supplied price/amount fields must be ignored; total comes from DB."""
+        if not checkout_available:
+            pytest.skip("Stripe checkout not configured in this environment")
         payload = {
             "items": [{"slug": "kashmiri-red-chilli", "quantity": 3, "unit_price": 0.01, "price_eur": 0.01}],
             "origin_url": BASE_URL,
@@ -223,7 +240,7 @@ class TestCheckout:
         assert r.status_code == 200, r.text
         sid = r.json()["session_id"]
         s = api.get(f"{BASE_URL}/api/checkout/status/{sid}").json()
-        assert s["amount"] == 19.50, s  # 6.50 * 3
+        assert s["amount"] == 31.50, s  # 6.50 * 3 + 12.00 delivery
         assert s["currency"] == "eur"
         assert s["payment_status"] == "pending"
 
@@ -232,8 +249,10 @@ class TestCheckout:
             "items": [{"slug": "royal-garam-masala", "quantity": 0}], "origin_url": BASE_URL})
         assert r.status_code == 422, r.text
 
-    def test_authenticated_checkout_creates_order_for_user(self, api, customer_token):
+    def test_authenticated_checkout_creates_order_for_user(self, api, customer_token, checkout_available):
         """E2E: authed checkout -> order written -> visible in /api/orders/mine."""
+        if not checkout_available:
+            pytest.skip("Stripe checkout not configured in this environment")
         token, email = customer_token
         h = {"Authorization": f"Bearer {token}"}
         r = api.post(f"{BASE_URL}/api/checkout/session", json={
@@ -255,7 +274,7 @@ class TestCheckout:
         assert "_id" not in o
         assert o["status"] == "initiated"
         assert o["payment_status"] == "pending"
-        assert o["amount"] == round(7.20 * 2 + 5.90, 2)
+        assert o["amount"] == round(7.20 * 2 + 5.90 + 12.00, 2)
         assert o["email"].lower() == email.lower()
         assert len(o["items"]) == 2
         assert {i["slug"] for i in o["items"]} == {"turmeric-gold", "chai-masala"}
@@ -265,7 +284,9 @@ class TestCheckout:
         assert one.status_code == 200
         assert one.json()["session_id"] == sid
 
-    def test_order_not_visible_to_other_user(self, api, customer_token):
+    def test_order_not_visible_to_other_user(self, api, customer_token, checkout_available):
+        if not checkout_available:
+            pytest.skip("Stripe checkout not configured in this environment")
         token, _ = customer_token
         h = {"Authorization": f"Bearer {token}"}
         r = api.post(f"{BASE_URL}/api/checkout/session", json={

@@ -1,12 +1,11 @@
 """Additional backend routes: wishlist, journal, product gallery."""
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from bson import ObjectId
 
 from auth_utils import get_current_user, require_admin
-from image_gen import generate_product_image
 from seed_journal import JOURNAL
 
 extra_router = APIRouter(prefix="/api")
@@ -100,42 +99,6 @@ async def get_journal_post(slug: str):
         raise HTTPException(404, "Post not found")
     doc["id"] = str(doc.pop("_id"))
     return doc
-
-
-# ================== GALLERY (admin) ==================
-class GalleryRegenIn(BaseModel):
-    count: int = 2
-
-
-@extra_router.post("/admin/products/{product_id}/gallery/generate")
-async def gen_gallery(product_id: str, payload: GalleryRegenIn, bg: BackgroundTasks, admin=Depends(require_admin)):
-    db = _get_db()
-    try:
-        oid = ObjectId(product_id)
-    except Exception:
-        raise HTTPException(400, "Invalid id")
-    doc = await db.products.find_one({"_id": oid})
-    if not doc:
-        raise HTTPException(404, "Not found")
-
-    async def do_gen():
-        # variants of the base prompt for gallery
-        base_prompt = doc.get("image_prompt", "")
-        variants = [
-            base_prompt + " · overhead flat lay composition on marble",
-            base_prompt + " · lifestyle close-up detail shot with warm golden hour light",
-            base_prompt + " · styled with fresh botanicals and vintage brassware",
-        ][: max(1, min(4, payload.count))]
-        new_urls = list(doc.get("gallery_images", []))
-        for i, v in enumerate(variants):
-            path = await generate_product_image(v, doc.get("slug", "") + f"-g{i}")
-            if path:
-                new_urls.append(path)
-        if new_urls:
-            await db.products.update_one({"_id": oid}, {"$set": {"gallery_images": new_urls}})
-
-    bg.add_task(do_gen)
-    return {"status": "queued"}
 
 
 # ================== WHOLESALE ENQUIRY ==================
@@ -236,35 +199,3 @@ async def seed_journal(db):
                     "updated_at": now,
                 }},
             )
-
-
-async def generate_journal_covers(db):
-    """Background: AI cover images for journal posts (Nano Banana)."""
-    posts = await db.journal.find({"$or": [{"cover_image": {"$exists": False}}, {"cover_image": ""}]}).to_list(length=None)
-    for post in posts:
-        prompt = post.get("cover_prompt")
-        if not prompt:
-            continue
-        path = await generate_product_image(prompt, "journal-" + post.get("slug", ""))
-        if path:
-            await db.journal.update_one({"_id": post["_id"]}, {"$set": {"cover_image": path}})
-
-
-async def generate_gallery_for_products(db, per_product: int = 2):
-    """Background: generate `per_product` additional images per product for its gallery."""
-    products = await db.products.find({"$or": [{"gallery_images": {"$exists": False}}, {"gallery_images": []}]}).to_list(length=None)
-    for prod in products:
-        base_prompt = prod.get("image_prompt", "")
-        if not base_prompt:
-            continue
-        variants = [
-            base_prompt + " · overhead flat lay composition on textured marble surface",
-            base_prompt + " · intimate lifestyle detail shot with warm golden hour light",
-        ][:per_product]
-        gallery = []
-        for i, v in enumerate(variants):
-            path = await generate_product_image(v, prod.get("slug", "") + f"-g{i}")
-            if path:
-                gallery.append(path)
-        if gallery:
-            await db.products.update_one({"_id": prod["_id"]}, {"$set": {"gallery_images": gallery}})

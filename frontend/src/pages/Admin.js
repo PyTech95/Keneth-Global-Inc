@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { formatPrice } from "@/lib/currency";
-import { api, formatErr } from "@/lib/api";
+import { api } from "@/lib/api";
 import { TID } from "@/constants/testIds";
-import { toast } from "sonner";
 import { AdminVideoSettings } from "@/components/AdminVideoSettings";
 
 const TABS = [
@@ -35,15 +34,6 @@ export default function Admin() {
 
     if (!ready) return <div className="py-40 text-center text-bone-300">{t("common.loading")}</div>;
     if (!user || user.role !== "admin") return <Navigate to="/login" replace />;
-
-    const regen = async (id) => {
-        try {
-            await api.post(`/admin/products/${id}/regenerate-image`);
-            toast.success("Image queued — refresh in a moment");
-        } catch (e) {
-            toast.error(formatErr(e));
-        }
-    };
 
     return (
         <div className="pt-12 pb-24">
@@ -107,9 +97,7 @@ export default function Admin() {
                                 <div className="col-span-2 text-xs tracking-[0.2em] uppercase text-bone-300">{p.vertical}</div>
                                 <div className="col-span-2 text-right font-serif text-brass-400">{formatPrice(p.price_eur, lang)}</div>
                                 <div className="col-span-3 text-right">
-                                    <button onClick={() => regen(p.id)} className="text-[10px] tracking-[0.24em] uppercase text-brass-400 hover:text-brass-300 transition-colors">
-                                        {p.ai_image ? "Re-generate image" : "Generate image"}
-                                    </button>
+                                    <Link to={`/product/${p.slug}`} data-testid={`admin-view-product-${p.slug}`} className="text-xs uppercase text-brass-400 hover:text-brass-300 transition-colors">View product</Link>
                                 </div>
                             </div>
                         ))}

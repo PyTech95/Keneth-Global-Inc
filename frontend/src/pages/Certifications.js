@@ -1,11 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { useI18n } from "@/contexts/I18nContext";
 import { ShieldCheck, Leaf, Award, FileCheck, ExternalLink, ArrowRight, Download, Factory } from "lucide-react";
 
 const CERT_ASSETS = {
-    iec: "https://customer-assets-eiarnc6j.emergentagent.net/job_spice-home-global/artifacts/75e5efrc_certificate.pdf",
-    fssai: "https://customer-assets-eiarnc6j.emergentagent.net/job_spice-home-global/artifacts/l0lkv9j8_Application1.pdf",
+    iec: "/certificates/iec.pdf",
+    fssai: "/certificates/fssai.pdf",
 };
 
 export default function Certifications() {
@@ -148,6 +147,7 @@ function CertCard({ icon: Icon, eyebrow, title, number, detail, verifyLabel, ver
                 {verifyHref && (
                     <a
                         href={verifyHref}
+                        data-testid={`certificate-verify-${number.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`}
                         target="_blank"
                         rel="noreferrer noopener"
                         className="inline-flex items-center gap-2 border border-brass-400/60 hover:border-brass-400 text-brass-400 hover:bg-brass-400/10 transition-colors px-4 py-2.5 text-[10px] tracking-[0.24em] uppercase"
@@ -158,6 +158,7 @@ function CertCard({ icon: Icon, eyebrow, title, number, detail, verifyLabel, ver
                 {downloadHref && (
                     <a
                         href={downloadHref}
+                        data-testid={`certificate-download-${number.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`}
                         target="_blank"
                         rel="noreferrer noopener"
                         className="inline-flex items-center gap-2 text-bone-300 hover:text-brass-400 transition-colors px-4 py-2.5 text-[10px] tracking-[0.24em] uppercase"
