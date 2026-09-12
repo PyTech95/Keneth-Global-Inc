@@ -4,10 +4,11 @@ import React from "react";
  * Official Keneth Global Inc mark — ornate gold "K" with sunburst rays.
  * The image comes from /logo-mark.png in the public folder.
  */
-export function Monogram({ className = "" }) {
+export function Monogram({ className = "", testId }) {
     return (
         <img
             src="/logo-mark.png"
+            data-testid={testId}
             alt="Keneth Global Inc"
             className={`${className} object-contain`}
             draggable="false"

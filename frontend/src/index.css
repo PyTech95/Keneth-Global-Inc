@@ -180,3 +180,31 @@ h1, h2, h3, h4 {
 .on-image-shadow {
     text-shadow: 0 1px 16px rgba(0, 0, 0, 0.7);
 }
+
+/* Product-led editorial home: full images, unframed and responsive. */
+.product-hero { background: #100f0d; }
+.hero-stage { min-height: 450px; }
+.hero-product-image { position: absolute; inset: 0 0 0 auto; width: 64%; height: 100%; object-fit: contain; }
+.hero-product-shade { background: linear-gradient(90deg, #100f0d 18%, rgba(16,15,13,.92) 30%, transparent 55%); }
+.hero-product-copy { width: 42%; min-height: 450px; padding: 44px 0 36px; display: flex; flex-direction: column; justify-content: center; }
+.product-carousel-track { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 48px) / 3); gap: 24px; overflow-x: auto; scroll-snap-type: x mandatory; }
+#about, #christmas-collection { scroll-margin-top: 180px; }
+:focus-visible { outline: 2px solid #C5A059; outline-offset: 4px; }
+@media (max-width: 1023px) {
+    .hero-product-image { width: 60%; }
+    .hero-product-copy { width: 48%; }
+    .product-carousel-track { grid-auto-columns: calc((100% - 24px) / 2); }
+    #about, #christmas-collection { scroll-margin-top: 120px; }
+}
+@media (max-width: 639px) {
+    .hero-product-image { width: 100%; height: 190px; inset: 0 0 auto; }
+    .hero-product-shade { background: linear-gradient(0deg, #100f0d 5%, transparent 80%); top: 150px; bottom: auto; height: 50px; }
+    .hero-product-copy { width: 100%; min-height: 0; padding: 210px 0 26px; }
+    .hero-product-copy h1 { font-size: 30px; }
+    .product-carousel-track { grid-auto-columns: 78%; gap: 16px; }
+    #about, #christmas-collection { scroll-margin-top: 150px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .animate-marquee, .animate-ken-burns, .animate-fade-up { animation: none; }
+    .card-image-wrap img { transition: none; }
+}

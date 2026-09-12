@@ -32,6 +32,7 @@ from auth_utils import (
 from seed_catalog import CATALOG
 from image_gen import generate_images_for_products, generate_product_image, reconcile_static_images, STATIC_DIR
 from extra_routes import extra_router, seed_journal, generate_journal_covers, generate_gallery_for_products
+from video_settings import video_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -523,6 +524,7 @@ async def health():
 # Register routes
 app.include_router(api)
 app.include_router(extra_router)
+app.include_router(video_router)
 
 # CORS
 app.add_middleware(

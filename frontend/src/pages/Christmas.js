@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useI18n } from "@/contexts/I18nContext";
-import ProductCard from "@/components/ProductCard";
+import { ProductCarousel } from "@/components/ProductCarousel";
+import { CollectionFilters } from "@/components/CollectionFilters";
 import { TID } from "@/constants/testIds";
 import { ArrowRight, Truck, Gift, Sparkles, TreePine } from "lucide-react";
 
@@ -55,16 +56,30 @@ function Countdown() {
 export default function Christmas() {
     const { t } = useI18n();
     const [products, setProducts] = useState([]);
+    const [params, setParams] = useSearchParams();
+    const category = params.get("category") || "";
+    const [error, setError] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [retry, setRetry] = useState(0);
 
     useEffect(() => {
-        api.get("/products").then(({ data }) => setProducts(data)).catch(() => {});
-    }, []);
+        let active = true;
+        setError(false); setLoading(true);
+        api.get("/products", { params: { vertical: "christmas-decor" } }).then(({ data }) => { if (active) setProducts(data); })
+            .catch(() => { if (active) setError(true); }).finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [retry]);
 
-    const xmas = products.filter((p) => p.vertical === "christmas-decor");
+    useEffect(() => {
+        if (category && !loading) document.getElementById("christmas-collection")?.scrollIntoView({ block: "start" });
+    }, [category, loading]);
+
+    const categories = Object.fromEntries(products.map(p => [p.category, 1]));
+    const xmas = products.filter((p) => !category || p.category === category);
     const under30 = products.filter((p) => Number(p.price_eur) < 30).slice(0, 4);
     const statement = [...products].sort((a, b) => Number(b.price_eur) - Number(a.price_eur)).slice(0, 4);
     const forHost = products
-        .filter((p) => ["home-furnishing", "christmas-decor"].includes(p.vertical))
+        .filter((p) => ["table-linen", "stockings"].includes(p.category))
         .slice(0, 4);
 
     return (
@@ -92,7 +107,7 @@ export default function Christmas() {
                 <div className="relative z-10 h-full max-w-[1400px] mx-auto px-5 sm:px-6 lg:px-10 flex flex-col justify-end pb-16 sm:pb-24 lg:pb-28">
                     <div className="max-w-3xl">
                         <p className="text-[11px] sm:text-xs tracking-[0.32em] sm:tracking-[0.4em] uppercase text-brass-200 mb-5 sm:mb-6 animate-fade-up on-image-shadow">
-                            — {t("xmas.eyebrow")}
+                            — {t("nav.christmas")}
                         </p>
                         <h1 className="font-serif text-[40px] sm:text-[64px] lg:text-[84px] leading-[0.96] tracking-tight text-white mb-6 sm:mb-8 animate-fade-up animate-fade-up-delay-1 hero-text-shadow">
                             {t("xmas.title")}
@@ -101,7 +116,7 @@ export default function Christmas() {
                             {t("xmas.subtitle")}
                         </p>
                         <a
-                            href="#gift-guide"
+                            href="#christmas-collection"
                             data-testid={TID.xmasShopCta}
                             className="group inline-flex items-center gap-3 sm:gap-4 bg-brass-400 text-ink-900 hover:bg-brass-300 transition-colors duration-500 px-7 sm:px-9 py-4 text-[10px] sm:text-[11px] tracking-[0.24em] sm:tracking-[0.28em] uppercase animate-fade-up animate-fade-up-delay-3"
                         >
@@ -113,26 +128,26 @@ export default function Christmas() {
             </section>
 
             {/* CHRISTMAS COLLECTION */}
-            {xmas.length > 0 && (
-                <section className="py-20 sm:py-24 lg:py-28 border-t border-white/5">
+                <section id="christmas-collection" data-testid="christmas-collection" className="py-20 sm:py-24 lg:py-28 border-t border-white/5">
                     <div className="max-w-[1400px] mx-auto px-5 sm:px-6 lg:px-10">
                         <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-10 sm:mb-14 gap-4">
                             <div>
                                 <p className="text-[10px] sm:text-[11px] tracking-[0.32em] uppercase text-brass-300 mb-3 sm:mb-4">— {t("home.house.christmas-decor")}</p>
-                                <h2 className="font-serif text-4xl sm:text-5xl lg:text-6xl text-bone-100 tracking-tight leading-none">
+                                <h2 data-testid="christmas-collection-heading" className="font-serif text-4xl sm:text-5xl lg:text-6xl text-bone-100 leading-none">
                                     {t("nav.christmas")}
                                 </h2>
                             </div>
-                            <Link to="/shop/christmas-decor" className="text-[10px] sm:text-[11px] tracking-[0.28em] uppercase text-brass-300 link-hairline self-start md:self-auto">
+                            <Link data-testid="christmas-shop-all" to="/shop/christmas-decor" className="text-xs uppercase text-brass-300 link-hairline self-start md:self-auto">
                                 {t("xmas.shopAll")}
                             </Link>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-8 gap-y-10 sm:gap-y-14">
-                            {xmas.map((p) => <ProductCard key={p.slug} product={p} />)}
-                        </div>
+                        <div className="mb-8"><CollectionFilters categories={categories} selected={category} onSelect={value => setParams(value ? { category: value } : {})} prefix="christmas-category" /></div>
+                        {loading ? <p data-testid="christmas-loading" role="status">{t("common.loading")}</p>
+                            : error ? <div data-testid="christmas-error" role="alert">{t("catalog.error")}<button type="button" data-testid="christmas-retry" onClick={() => setRetry(n => n + 1)} className="ml-4 text-brass-300">{t("catalog.retry")}</button></div>
+                                : !xmas.length ? <p data-testid="christmas-empty">{t("shop.empty")}</p>
+                                    : <ProductCarousel key={category} id="christmas-collection" products={xmas} />}
                     </div>
                 </section>
-            )}
 
             {/* GIFT GUIDE */}
             <section id="gift-guide" className="py-20 sm:py-24 lg:py-32 border-t border-white/5 bg-ink-800/30 scroll-mt-24">
@@ -147,16 +162,16 @@ export default function Christmas() {
                         <p className="text-base sm:text-lg text-bone-300 font-light leading-relaxed">{t("xmas.guide.sub")}</p>
                     </div>
 
-                    <GiftBand icon={Sparkles} title={t("xmas.guide.under")} items={under30} />
-                    <GiftBand icon={Gift} title={t("xmas.guide.statement")} items={statement} />
-                    <GiftBand icon={Truck} title={t("xmas.guide.forHome")} items={forHost} last />
+                    <GiftBand id="christmas-under-30" icon={Sparkles} title={t("xmas.guide.under")} items={under30} />
+                    <GiftBand id="christmas-statement" icon={Gift} title={t("xmas.guide.statement")} items={statement} />
+                    <GiftBand id="christmas-host" icon={Truck} title={t("xmas.guide.forHome")} items={forHost} last />
                 </div>
             </section>
         </div>
     );
 }
 
-function GiftBand({ icon: Icon, title, items, last = false }) {
+function GiftBand({ id, icon: Icon, title, items, last = false }) {
     if (!items || items.length === 0) return null;
     return (
         <div className={last ? "" : "mb-16 sm:mb-24"}>
@@ -165,9 +180,7 @@ function GiftBand({ icon: Icon, title, items, last = false }) {
                 <h3 className="font-serif text-2xl sm:text-3xl text-bone-100 tracking-tight">{title}</h3>
                 <div className="flex-1 h-px bg-white/10 ml-4" />
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-8 gap-y-10 sm:gap-y-14">
-                {items.map((p) => <ProductCard key={p.slug} product={p} />)}
-            </div>
+            <ProductCarousel id={id} products={items} />
         </div>
     );
 }

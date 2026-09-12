@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
-import { ShoppingBag, User, Menu, X, ChevronDown, Search, Heart, Home as HomeIcon } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Link, useLocation } from "react-router-dom";
+import { ShoppingBag, User, Menu, X, ChevronDown, Search, Heart } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { TID } from "@/constants/testIds";
 import { Monogram } from "@/components/Logo";
+import { HouseNavigation } from "@/components/HouseNavigation";
 import SearchModal from "@/components/SearchModal";
 
 export default function Header() {
@@ -18,220 +20,82 @@ export default function Header() {
     const [langOpen, setLangOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const loc = useLocation();
-
-    useEffect(() => { setOpen(false); }, [loc.pathname]);
+    useEffect(() => { setOpen(false); setLangOpen(false); }, [loc.key]);
     useEffect(() => {
         document.body.style.overflow = open ? "hidden" : "";
         return () => { document.body.style.overflow = ""; };
     }, [open]);
-
-    // Keyboard shortcut "/" opens search
     useEffect(() => {
-        const onKey = (e) => {
-            if (e.key === "/" && !["INPUT","TEXTAREA"].includes(e.target.tagName)) {
-                e.preventDefault();
-                setSearchOpen(true);
-            }
+        const onKey = e => {
+            if (e.key === "/" && !["INPUT", "TEXTAREA"].includes(e.target.tagName) && !e.target.isContentEditable) { e.preventDefault(); setSearchOpen(true); }
+            if (e.key === "Escape") { setOpen(false); setLangOpen(false); }
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, []);
-
-    const showBar = !loc.pathname.startsWith("/payment");
-    const navItem = "text-[11px] tracking-[0.24em] uppercase text-bone-100/90 hover:text-brass-300 transition-colors";
-
-    return (
-        <>
-            <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
-            {showBar && (
-                <div className="bg-ink-800 border-b border-white/5 overflow-hidden">
-                    <div className="whitespace-nowrap py-2.5 flex animate-marquee">
-                        {Array(2).fill(0).map((_, i) => (
-                            <div key={i} className="flex shrink-0 items-center gap-8 sm:gap-14 pr-8 sm:pr-14">
-                                <span className="text-[10px] sm:text-[11px] tracking-[0.24em] sm:tracking-[0.28em] uppercase text-bone-200">Complimentary EU delivery over €120</span>
-                                <span className="text-brass-300 text-[10px]">◆</span>
-                                <span className="text-[10px] sm:text-[11px] tracking-[0.24em] sm:tracking-[0.28em] uppercase text-bone-200">Sealed within hours of milling</span>
-                                <span className="text-brass-300 text-[10px]">◆</span>
-                                <span className="text-[10px] sm:text-[11px] tracking-[0.24em] sm:tracking-[0.28em] uppercase text-bone-200">Handcrafted in six Indian states</span>
-                                <span className="text-brass-300 text-[10px]">◆</span>
+    const iconClass = "p-2 text-bone-100 hover:text-brass-300 transition-colors";
+    return <>
+        <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+        {!loc.pathname.startsWith("/payment") && <div className="bg-ink-800 border-b border-white/5 overflow-hidden" data-testid="announcement-bar">
+            <div className="whitespace-nowrap py-2.5 flex animate-marquee">
+                {[0, 1].map(i => <div key={i} aria-hidden={i === 1} className="flex shrink-0 items-center gap-10 pr-10 text-[10px] sm:text-[11px] uppercase text-bone-200">
+                    <span data-testid={`announcement-delivery-${i}`}>{t("announcement.delivery")}</span><span className="text-brass-300">◆</span>
+                    <span data-testid={`announcement-spices-${i}`}>{t("announcement.spices")}</span><span className="text-brass-300">◆</span>
+                    <span data-testid={`announcement-craft-${i}`}>{t("announcement.craft")}</span><span className="text-brass-300">◆</span>
+                </div>)}
+            </div>
+        </div>}
+        <header data-testid="store-header" className="sticky top-0 z-50 bg-ink-900/95 backdrop-blur-xl border-b border-white/10">
+            <div className="max-w-[1400px] mx-auto px-5 sm:px-6 lg:px-10">
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-6 py-1 sm:py-2">
+                    <Link to="/" data-testid={TID.logo} className="group flex items-center gap-3 sm:gap-4 shrink-0">
+                        <Monogram testId="header-logo-mark" className="w-[73px] h-[73px] sm:w-[83px] sm:h-[83px] group-hover:rotate-3 transition-transform duration-500 shrink-0" />
+                        <div data-testid="header-logo-text" className="flex flex-col leading-none">
+                            <div className="flex items-baseline gap-1.5 sm:gap-2">
+                                <span className="font-serif text-xl sm:text-[26px] text-white">Keneth</span>
+                                <span className="font-serif italic text-base sm:text-[22px] text-white">Global Inc</span>
                             </div>
-                        ))}
+                            <span className="hidden sm:block text-[9px] uppercase text-bone-300 mt-1">Est. India · 2023</span>
+                        </div>
+                    </Link>
+                    <div className="flex items-center justify-between sm:justify-end gap-1 sm:gap-3 w-full sm:w-auto border-t sm:border-0 border-white/5">
+                        <button type="button" onClick={() => setSearchOpen(true)} data-testid="header-search-btn" className={iconClass} aria-label="Search"><Search className="w-5 h-5" /></button>
+                        <div className="relative" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setLangOpen(false); }}>
+                            <button type="button" onClick={() => setLangOpen(s => !s)} data-testid={TID.langBtn} aria-expanded={langOpen} aria-label="Language"
+                                className={`${iconClass} flex items-center gap-1 text-xs uppercase`}>{languages.find(l => l.code === lang)?.short}<ChevronDown className="w-3 h-3" /></button>
+                            {langOpen && <div data-testid="language-menu" className="absolute right-0 top-full mt-2 min-w-[150px] bg-ink-800 border border-white/10 shadow-2xl z-50">
+                                {languages.map(l => <button type="button" key={l.code} data-testid={TID.langOption(l.code)} onClick={() => { setLang(l.code); setLangOpen(false); }}
+                                    className={`block w-full text-left px-4 py-3 text-xs transition-colors ${lang === l.code ? "text-brass-400" : "text-bone-100 hover:text-brass-400 hover:bg-ink-700"}`}>{l.short} · {l.label}</button>)}
+                            </div>}
+                        </div>
+                        <Link to="/wishlist" data-testid="nav-wishlist" className={`${iconClass} relative`} aria-label="Wishlist"><Heart className="w-5 h-5" />{wishCount > 0 && <Badge id="wishlist-count" value={wishCount} />}</Link>
+                        {user ? <>
+                            {user.role === "admin" && <Link to="/admin" data-testid={TID.navAdmin} className="hidden md:block text-xs text-brass-300">{t("nav.admin")}</Link>}
+                            <Link to="/account" data-testid={TID.navAccount} className={iconClass} aria-label={t("nav.account")}><User className="w-5 h-5" /></Link>
+                        </> : <Link to="/login" data-testid={TID.navLogin} className={iconClass} aria-label={t("nav.login")} title={t("nav.login")}><User className="w-5 h-5" /></Link>}
+                        <Link to="/cart" data-testid={TID.navCart} className={`${iconClass} relative`} aria-label={t("nav.cart")}><ShoppingBag className="w-5 h-5" />{count > 0 && <Badge id="cart-count" value={count} />}</Link>
+                        <button type="button" data-testid="mobile-menu-open" onClick={() => setOpen(true)} className={`lg:hidden ${iconClass}`} aria-label="Menu" aria-expanded={open}><Menu className="w-6 h-6" /></button>
                     </div>
                 </div>
-            )}
-            <header className="sticky top-0 z-50 bg-ink-900/90 backdrop-blur-xl border-b border-white/10">
-                <div className="max-w-[1400px] mx-auto px-5 sm:px-6 lg:px-10">
-                    <div className="flex items-center justify-between h-16 sm:h-20">
-                        <Link to="/" data-testid={TID.logo} className="group flex items-center gap-3 sm:gap-4 shrink-0">
-                            <Monogram className="w-14 h-14 sm:w-16 sm:h-16 group-hover:rotate-3 transition-transform duration-500 shrink-0" />
-                            <div className="flex flex-col leading-none">
-                                <div className="flex items-baseline gap-1.5 sm:gap-2">
-                                    <span className="font-serif text-xl sm:text-[26px] tracking-tight text-white transition-colors">Keneth</span>
-                                    <span className="font-serif italic text-base sm:text-[22px] text-white">Global Inc</span>
-                                </div>
-                                <span className="hidden sm:block text-[9px] tracking-[0.3em] uppercase text-bone-300 mt-1">Est. India · 2023</span>
-                            </div>
-                        </Link>
-
-                        <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
-                            <NavLink to="/" data-testid={TID.navHome} className={`${navItem} flex items-center`} aria-label={t("nav.home")} title={t("nav.home")}>
-                                <HomeIcon className="w-[18px] h-[18px]" strokeWidth={1.6} />
-                            </NavLink>
-                            <NavLink to="/shop/masalas" data-testid={TID.navMasalas} className={navItem}>{t("nav.masalas")}</NavLink>
-                            <NavLink to="/shop/home-furnishing" data-testid={TID.navDecor} className={navItem}>{t("nav.decor")}</NavLink>
-                            <NavLink to="/shop/artificial-jewelry" data-testid={TID.navJewelry} className={navItem}>{t("nav.jewelry")}</NavLink>
-                            <NavLink to="/christmas" data-testid={TID.navChristmas} className={navItem}>{t("nav.christmas")}</NavLink>
-                            <NavLink to="/shop" data-testid={TID.navShop} className={navItem}>{t("nav.shop")}</NavLink>
-                        </nav>
-
-                        <div className="flex items-center gap-3 sm:gap-5">
-                            {/* Search */}
-                            <button
-                                onClick={() => setSearchOpen(true)}
-                                data-testid="header-search-btn"
-                                className="text-bone-100/80 hover:text-brass-400 transition-colors"
-                                aria-label="Search"
-                            >
-                                <Search className="w-5 h-5" />
-                            </button>
-
-                            {/* Language */}
-                            <div className="relative">
-                                <button
-                                    onClick={() => setLangOpen((s) => !s)}
-                                    onBlur={() => setTimeout(() => setLangOpen(false), 200)}
-                                    data-testid={TID.langBtn}
-                                    className="flex items-center gap-1 text-[11px] tracking-[0.24em] uppercase text-bone-100/80 hover:text-brass-400 transition-colors"
-                                >
-                                    {languages.find((l) => l.code === lang)?.short || "EN"}
-                                    <ChevronDown className="w-3 h-3" />
-                                </button>
-                                {langOpen && (
-                                    <div className="absolute right-0 top-full mt-3 min-w-[150px] bg-ink-800 border border-white/10 shadow-2xl">
-                                        {languages.map((l) => (
-                                            <button
-                                                key={l.code}
-                                                data-testid={TID.langOption(l.code)}
-                                                onMouseDown={() => { setLang(l.code); setLangOpen(false); }}
-                                                className={`block w-full text-left px-4 py-3 text-[11px] tracking-[0.18em] uppercase transition-colors ${
-                                                    lang === l.code ? "text-brass-400" : "text-bone-100/80 hover:text-brass-400 hover:bg-ink-700"
-                                                }`}
-                                            >
-                                                {l.short} · <span className="normal-case tracking-normal font-light">{l.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Wishlist */}
-                            <Link
-                                to="/wishlist"
-                                data-testid="nav-wishlist"
-                                className="relative hidden md:inline-flex text-bone-100/80 hover:text-brass-400 transition-colors"
-                                aria-label="Wishlist"
-                            >
-                                <Heart className="w-5 h-5" />
-                                {wishCount > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-brass-400 text-ink-900 text-[10px] font-medium min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full">
-                                        {wishCount}
-                                    </span>
-                                )}
-                            </Link>
-
-                            {user ? (
-                                <div className="hidden md:flex items-center gap-4">
-                                    {user.role === "admin" && (
-                                        <Link to="/admin" data-testid={TID.navAdmin} className={navItem}>{t("nav.admin")}</Link>
-                                    )}
-                                    <Link to="/account" data-testid={TID.navAccount} className="text-bone-100/80 hover:text-brass-400 transition-colors" aria-label={t("nav.account")}>
-                                        <User className="w-5 h-5" />
-                                    </Link>
-                                </div>
-                            ) : (
-                                <Link to="/login" data-testid={TID.navLogin} className={`hidden md:inline ${navItem}`}>{t("nav.login")}</Link>
-                            )}
-
-                            <Link to="/cart" data-testid={TID.navCart} className="relative text-bone-100/80 hover:text-brass-400 transition-colors" aria-label={t("nav.cart")}>
-                                <ShoppingBag className="w-5 h-5" />
-                                {count > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-brass-400 text-ink-900 text-[10px] font-medium min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full">
-                                        {count}
-                                    </span>
-                                )}
-                            </Link>
-
-                            <button onClick={() => setOpen(true)} className="lg:hidden text-bone-100 -mr-1" aria-label="Menu">
-                                <Menu className="w-6 h-6" />
-                            </button>
-                        </div>
-                    </div>
+                <div className="hidden lg:block border-t border-white/5"><HouseNavigation /></div>
+            </div>
+        </header>
+        {open && createPortal(<div data-testid="mobile-menu" role="dialog" aria-modal="true" aria-label="Navigation" className="fixed inset-0 z-[70] bg-ink-900 flex flex-col overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+                <Link to="/" data-testid="mobile-menu-logo" className="flex items-center gap-2"><Monogram className="w-[62px] h-[62px]" /><span className="font-serif text-xl text-white">Keneth <i>Global Inc</i></span></Link>
+                <button type="button" data-testid="mobile-menu-close" onClick={() => setOpen(false)} className={iconClass} aria-label="Close menu" autoFocus><X className="w-6 h-6" /></button>
+            </div>
+            <div className="px-5 py-6"><HouseNavigation mobile />
+                <div className="border-t border-white/10 mt-6 py-4 flex flex-wrap gap-5 text-sm text-bone-300">
+                    {["wholesale", "certifications", "journal"].map(path => <Link key={path} data-testid={`mobile-nav-${path}`} to={`/${path}`} className="capitalize hover:text-brass-300">{path}</Link>)}
                 </div>
-
-                {/* Mobile menu */}
-                {open && (
-                    <div className="fixed inset-0 z-[60] bg-ink-900 flex flex-col overflow-y-auto">
-                        <div className="flex items-center justify-between h-16 px-5 border-b border-white/10 shrink-0">
-                            <div className="flex items-center gap-3">
-                                <Monogram className="w-12 h-12" />
-                                <span className="font-serif text-xl text-white">Keneth <span className="italic text-white">Global Inc</span></span>
-                            </div>
-                            <button onClick={() => setOpen(false)} className="text-bone-100 -mr-1" aria-label="Close">
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-                        <nav className="flex flex-col p-8 gap-1 flex-1">
-                            <MobileLink to="/">{t("nav.home")}</MobileLink>
-                            <MobileLink to="/shop/masalas">{t("nav.masalas")}</MobileLink>
-                            <MobileLink to="/shop/home-furnishing">{t("nav.decor")}</MobileLink>
-                            <MobileLink to="/shop/artificial-jewelry">{t("nav.jewelry")}</MobileLink>
-                            <MobileLink to="/christmas">{t("nav.christmas")}</MobileLink>
-                            <MobileLink to="/shop">{t("nav.shop")}</MobileLink>
-                            <MobileLink to="/wholesale">Wholesale</MobileLink>
-                            <MobileLink to="/certifications">Certifications</MobileLink>
-                            <MobileLink to="/journal">Journal</MobileLink>
-                            <MobileLink to="/wishlist">Wishlist {wishCount > 0 && <span className="text-brass-400">· {wishCount}</span>}</MobileLink>
-                            <div className="h-px bg-white/10 my-6" />
-                            {user ? (
-                                <>
-                                    <MobileLink to="/account" gold>{t("nav.account")}</MobileLink>
-                                    {user.role === "admin" && <MobileLink to="/admin" gold>{t("nav.admin")}</MobileLink>}
-                                    <button onClick={() => { logout(); setOpen(false); }} data-testid={TID.navLogout} className="text-left py-4 text-[11px] tracking-[0.28em] uppercase text-bone-300 hover:text-brass-400 transition-colors">
-                                        {t("nav.logout")}
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <MobileLink to="/login" gold>{t("nav.login")}</MobileLink>
-                                    <MobileLink to="/register" gold>{t("nav.register")}</MobileLink>
-                                </>
-                            )}
-                        </nav>
-                        <div className="p-8 border-t border-white/10 text-xs text-bone-300/70 leading-relaxed">
-                            <div className="font-serif text-sm text-bone-100 mb-1">Mr Sanjay Keneth Mal</div>
-                            E-106, RG Luxury Homes, Sector-16B<br/>
-                            Thana Bishrakh, Post I.A. Surajpur<br/>
-                            Noida — 201306, Uttar Pradesh, India<br/>
-                            <a href="mailto:keneth.sanjay@gmail.com" className="link-hairline mt-2 inline-block text-brass-400">keneth.sanjay@gmail.com</a><br/>
-                            <span className="text-bone-300/60">+91 99538 39245</span>
-                            <div className="mt-4 pt-4 border-t border-white/5 text-[9px] tracking-[0.24em] uppercase text-bone-300/50">
-                                IEC · ADOPM2564J &nbsp; · &nbsp; GST · 09ADOPM2564J4ZY
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </header>
-        </>
-    );
+                {user ? <div className="flex flex-wrap gap-5 py-4 text-sm text-brass-300"><Link data-testid="mobile-nav-account" to="/account">{t("nav.account")}</Link>
+                    {user.role === "admin" && <Link data-testid="mobile-nav-admin" to="/admin">{t("nav.admin")}</Link>}
+                    <button data-testid={TID.navLogout} type="button" onClick={() => { logout(); setOpen(false); }}>{t("nav.logout")}</button></div>
+                    : <Link data-testid="mobile-nav-login" to="/login" className="text-brass-300">{t("nav.login")}</Link>}
+            </div>
+        </div>, document.body)}
+    </>;
 }
 
-function MobileLink({ to, children, gold = false }) {
-    return (
-        <Link
-            to={to}
-            className={`font-serif text-3xl leading-tight py-3 ${gold ? "text-brass-400" : "text-bone-100"} hover:text-brass-400 transition-colors`}
-        >
-            {children}
-        </Link>
-    );
-}
+const Badge = ({ id, value }) => <span data-testid={id} className="absolute -top-1 -right-1 bg-brass-400 text-ink-900 text-[10px] min-w-4 h-4 px-1 flex items-center justify-center rounded-full">{value}</span>;

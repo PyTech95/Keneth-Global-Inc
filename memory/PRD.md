@@ -1,5 +1,7 @@
 # Keneth Global — E-commerce PRD
 
+> Current source of truth: see **Storefront changes — 2026-09-12** below. Earlier backlog and test counts are historical; several listed gaps (wishlist, search, galleries, journal) were already implemented before this change.
+
 ## Original problem statement
 A modern e-commerce website for Keneth Global — an Indian company exporting to Europe. Deals in home decor (decorative cloth), Indian spices ("masalas"), and (added later) artificial jewelry. Website must be multi-language (English + EU languages) and "very beautiful". Full e-commerce with cart + Stripe checkout + admin panel + AI-generated product photography.
 
@@ -92,3 +94,50 @@ A modern e-commerce website for Keneth Global — an Indian company exporting to
 - Verified: /api/health db ok; 21 products seeded; admin login; static PNGs serve 200; Stripe checkout session -> checkout.stripe.com; SPA deep-links no 404; 42/42 backend pytest; deployment_agent readiness = PASS.
 - Known non-blocking (product decisions, not deploy bugs): EN visitors see INR-converted prices by design (lib/currency.js); top marquee strings are English-only (not routed through i18n).
 - Go-live TODO: swap sk_test_emergent for a live Stripe key; the app then works on the assigned emergent.host domain automatically.
+
+## Storefront changes — 2026-09-12
+
+### User request / confirmed scope
+- Increase the **header logo image only** by approximately 30%, leave brand text sizes unchanged. Do not compound the prior generic Logo.js enlargement.
+- Remove desktop/mobile Home navigation; clicking the brand remains the home action.
+- Show all live subcategories on hover under Indian Spices, Home Furnishing, Artificial Jewelry and Christmas Theme; mobile gets expandable category lists.
+- Rename customer-facing Christmas Decor to **Christmas Theme** (with translated equivalents).
+- Hero: multiple real products, working Buy Now, product details and story actions.
+- Replace the About man photograph with a video configured through an admin video-link field.
+- Preserve “Three houses. One provenance.”; replace featured spices with jewellery and women-wearing-jewellery imagery.
+- Add left/right arrows and expose every product in all homepage collection rows.
+- Each house shows only its own products and subcategories. Global Shop retains All plus the four houses.
+
+### Implemented
+- Header's actual Monogram changed from 56 → 73px mobile and 64 → 83px desktop. Earlier generic Logo.js sizes did not control the header. Brand text remains 20/26px and 16/22px.
+- Roomier responsive header, logo-home link, no Home item, four dynamic hover menus with keyboard handling and mobile expandable submenus. Categories sourced from existing `/api/products/verticals`.
+- Four-product hero (one product per house), thumbnails and previous/next controls. Buy Now adds the displayed product to cart; detail CTA opens its product page; story CTA scrolls to About.
+- About photo removed; admin Homepage tab supports save, preview and remove for a public HTTPS video URL. Empty configuration shows About copy/stats without a fake player or sample film. About story link now opens existing Journal instead of an unmatched `/about` route.
+- Five jewellery-only featured products plus two locally bundled, sourced editorial images of women wearing Indian jewellery. Existing product photography remains on sale-item cards.
+- Reusable product carousels display all 6 spices, 5 jewellery, 6 furnishing and 4 Christmas products. Previous/next boundary disabling, touch scrolling and keyboard navigation. Product images now use contain sizing rather than cropping critical detail; context-prefixed test IDs avoid duplicates.
+- House pages use `?category=...` and All resets within that house. Global `/shop?house=...` keeps all house tabs visible. Stale-request guards, empty/error/retry states added.
+- Christmas landing queries only Christmas products. Its filters and all gift-guide bands are strictly scoped; menu links can go straight to its selected subcategory. Seasonal visuals/countdown retained.
+- EN/DE/FR/ES/IT category labels, Christmas naming, new storefront copy and announcement translations. No longer an English-only announcement ticker.
+
+### Architecture / reference files
+- Existing React 19 + FastAPI + Motor MongoDB architecture retained. No changes to authentication, checkout or protected env configuration.
+- New `/app/backend/video_settings.py`, registered in `server.py`: public GET `/api/site/about-video`; admin-only PUT/DELETE on same path using existing `require_admin`.
+- Mongo `site_settings` singleton `_id: "about-video"`, fields `url`, `kind`, `updated_at`. GET projection excludes `_id`; typed Pydantic response. No startup seeding/reset of content settings.
+- Accepted media: canonical privacy-enhanced YouTube embed, Vimeo public/player links (optional privacy hash), direct HTTPS MP4/WebM/OGG. Reject credentials, unsupported URLs, literal IP/local hosts and custom ports. Server never fetches supplied video URLs; no uploads, storage integration or new provider keys.
+- Frontend modules: `HouseNavigation`, `CollectionFilters`, `ProductHero`, `ProductCarousel`, `HomeAbout`, `AboutVideo`, `AdminVideoSettings`, `FeaturedJewelry`, `ThreeHouses`; `lib/catalog.js`, `lib/storefrontTranslations.js`, `hooks/useCategories.js`.
+- Main routes touched: Home, Shop, Christmas and Admin. Existing images/photos and dark gold/Cormorant/Outfit style preserved.
+
+### Verification / current limitations
+- Production frontend build and backend compile succeeded. External API health returns 200 / database healthy.
+- `/app/test_reports/iteration_2.json`: **62/62 backend tests passed**; navigation/hero/cart actions/house and category filtering/carousels/admin save-remove/multilingual checks passed. Responsive overflow checked at 320/768/1024/1440; desktop smoke at 1920×800.
+- Follow-up `/app/test_reports/iteration_2_followup.json`: investigated the reported direct-MP4 failure. The automated Chromium has **no H.264 decoder** (`canPlayType` empty), not a storage/API/host error. WebM native playback advances in admin and home; refresh persistence and UI removal verified. YouTube embed rendering passed original testing. MP4 requires a browser/codec combination supporting the file.
+- Added localized format-specific video errors, retry and direct-open fallback; unsupported MP4 fallback/retry verified. No claim that H.264 playback passed in this test browser.
+- Original empty About video configuration restored after testing. **Company video link still needed from the user**, entered at **Admin → Homepage → Public video link → Save video**. No sample content is published.
+- Stripe remains a real integration in **TEST MODE**, not a mocked API. No payment/auth changes in this task. Existing newsletter remains visual-only; informational footer destinations still need dedicated content. No new mocked APIs.
+- Test customer created by testing documented in `/app/memory/test_credentials.md`; existing admin credentials unchanged.
+
+### Prioritized next actions
+- **P0 / user verification:** review the storefront changes and enter the company About video link in Admin → Homepage. No known blocking application issue in requested scope.
+- **P1:** inventory counts and atomic stock guarding; order-confirmation emails once an email service is selected; replace remaining placeholder informational pages.
+- **P2 / backlog:** functional newsletter subscriptions, product reviews, textile variants and additional editorial content.
+- **Suggested enhancement:** let the admin select/reorder hero and featured products for seasonal campaigns without code changes.

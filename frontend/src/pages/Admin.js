@@ -6,12 +6,14 @@ import { formatPrice } from "@/lib/currency";
 import { api, formatErr } from "@/lib/api";
 import { TID } from "@/constants/testIds";
 import { toast } from "sonner";
+import { AdminVideoSettings } from "@/components/AdminVideoSettings";
 
 const TABS = [
-    { key: "stats", label: "Overview", tid: null },
+    { key: "stats", label: "Overview", tid: "admin-tab-stats" },
     { key: "products", label: "Products", tid: "admin-tab-products" },
     { key: "orders", label: "Orders", tid: "admin-tab-orders" },
     { key: "users", label: "Customers", tid: "admin-tab-users" },
+    { key: "content", label: "Homepage", tid: "admin-tab-content" },
 ];
 
 export default function Admin() {
@@ -50,7 +52,7 @@ export default function Admin() {
                 <h1 className="font-serif text-5xl lg:text-6xl text-bone-100 tracking-tight leading-none mb-12">{t("admin.title")}</h1>
 
                 {/* Tabs */}
-                <div className="flex gap-8 border-b border-white/10 mb-12">
+                <div className="flex flex-wrap gap-x-8 gap-y-4 border-b border-white/10 mb-12">
                     {TABS.map((tb) => (
                         <button
                             key={tb.key}
@@ -64,6 +66,8 @@ export default function Admin() {
                         </button>
                     ))}
                 </div>
+
+                {tab === "content" && <AdminVideoSettings />}
 
                 {tab === "stats" && stats && (
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">

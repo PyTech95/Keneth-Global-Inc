@@ -1,3 +1,4 @@
+import { STOREFRONT_TRANSLATIONS } from "./storefrontTranslations";
 // Simple i18n dictionary for 5 languages.
 export const LANGUAGES = [
     { code: "en", label: "English", short: "EN" },
@@ -7,7 +8,7 @@ export const LANGUAGES = [
     { code: "it", label: "Italiano", short: "IT" },
 ];
 
-export const TRANSLATIONS = {
+const BASE_TRANSLATIONS = {
     en: {
         "nav.home": "Home",
         "nav.masalas": "Indian Spices",
@@ -829,3 +830,5 @@ export const TRANSLATIONS = {
         "b2b.success": "Richiesta ricevuta — il nostro team ti contatterà a breve.",
     },
 };
+
+export const TRANSLATIONS = Object.fromEntries(Object.entries(BASE_TRANSLATIONS).map(([lang, entries]) => [lang, { ...entries, ...STOREFRONT_TRANSLATIONS[lang] }]));
